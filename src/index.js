@@ -96,6 +96,71 @@ class ThemeManager {
     }
 }
 
+// Mobile Advanced Options Modal Management
+let mobileAdvancedOptions = {
+    emoji: true,
+    append_type: true,
+    append_info: true,
+    scv: false,
+    udp: false,
+    list: false,
+    sort: false,
+    fdn: false,
+    insert: false
+};
+
+function updateMobileAdvancedButton() {
+    const selectedCount = Object.values(mobileAdvancedOptions).filter(val => val).length;
+    const toggleText = document.getElementById('advancedToggleText');
+    if (toggleText) {
+        toggleText.textContent = selectedCount > 0 ? `高级选项 (${selectedCount})` : '高级选项';
+    }
+}
+
+function syncMobileAdvancedOptions() {
+    // Sync from desktop checkboxes to mobile modal
+    const desktopOptions = ['emoji', 'append_type', 'append_info', 'scv', 'udp', 'list', 'sort', 'fdn', 'insert'];
+    desktopOptions.forEach(option => {
+        const desktopCheckbox = document.getElementById(option);
+        if (desktopCheckbox) {
+            mobileAdvancedOptions[option] = desktopCheckbox.checked;
+        }
+    });
+    updateMobileAdvancedModal();
+    updateMobileAdvancedButton();
+}
+
+function updateMobileAdvancedModal() {
+    // Update mobile modal UI based on current options
+    Object.keys(mobileAdvancedOptions).forEach(option => {
+        const card = document.querySelector(`[data-option="${option}"]`);
+        if (card) {
+            if (mobileAdvancedOptions[option]) {
+                card.classList.add('mobile-option-checked');
+            } else {
+                card.classList.remove('mobile-option-checked');
+            }
+        }
+    });
+}
+
+function applyMobileAdvancedOptions() {
+    // Apply mobile options to desktop checkboxes
+    Object.keys(mobileAdvancedOptions).forEach(option => {
+        const desktopCheckbox = document.getElementById(option);
+        if (desktopCheckbox) {
+            desktopCheckbox.checked = mobileAdvancedOptions[option];
+        }
+    });
+}
+
+function handleMobileAdvancedToggle(optionName) {
+    console.log('Toggling option:', optionName, 'from', mobileAdvancedOptions[optionName], 'to', !mobileAdvancedOptions[optionName]);
+    mobileAdvancedOptions[optionName] = !mobileAdvancedOptions[optionName];
+    updateMobileAdvancedModal();
+    updateMobileAdvancedButton();
+}
+
 // Initialize theme manager
 const themeManager = new ThemeManager();
 
@@ -132,16 +197,28 @@ function showToast(message, type = 'info') {
     toastMessage.className = 'text-sm font-semibold text-gray-900 dark:text-gray-100';
     
     // Show toast with animation
-    toast.classList.remove('hidden', 'translate-x-full');
-    toast.classList.add('animate-slide-up');
+    const isMobile = window.innerWidth < 640;
+    toast.classList.remove('hidden');
+    if (isMobile) {
+        toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+        toast.classList.add('animate-slide-up');
+    } else {
+        toast.classList.remove('translate-x-full');
+        toast.classList.add('animate-slide-up');
+    }
     
     // Hide toast after 2.5 seconds (faster)
     setTimeout(() => {
-        toast.classList.add('translate-x-full');
+        if (isMobile) {
+            toast.classList.add('translate-y-[-100px]', 'opacity-0');
+        } else {
+            toast.classList.add('translate-x-full');
+        }
         toast.classList.remove('animate-slide-up');
         // Completely hide after animation
         setTimeout(() => {
             toast.classList.add('hidden');
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0', 'translate-x-full');
         }, 200); // Reduced from 300 to 200
     }, 2500); // Reduced from 3000 to 2500
 }
@@ -150,11 +227,18 @@ function showToast(message, type = 'info') {
 function hideToast() {
     const toast = document.getElementById('toast');
     if (toast) {
-        toast.classList.add('translate-x-full');
+        // Check if we're on mobile (screen width)
+        const isMobile = window.innerWidth < 640;
+        if (isMobile) {
+            toast.classList.add('translate-y-[-100px]', 'opacity-0');
+        } else {
+            toast.classList.add('translate-x-full');
+        }
         toast.classList.remove('animate-slide-up');
         setTimeout(() => {
             toast.classList.add('hidden');
-        }, 200); // Reduced from 300 to 200
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0', 'translate-x-full');
+        }, 200);
     }
 }
 
@@ -312,16 +396,14 @@ function handleFormSubmit(event) {
     // If custom backend is selected, use the custom input value
     if (backend === 'custom') {
         const customBackendHeader = document.getElementById('customBackendHeader');
-        backend = customBackendHeader ? customBackendHeader.value : '';
+        backend = customBackendHeader ? customBackendHeader.value.trim() : '';
         // Validate custom backend URL
         if (!backend) {
             showToast('请输入自定义后端地址', 'error');
             return;
         }
-        // Ensure URL ends with /sub?
-        if (!backend.endsWith('/sub?') && !backend.endsWith('/sub')) {
-            backend += '/sub?';
-        }
+        // Smart auto-completion for backend URL
+        backend = autoCompleteBackendUrl(backend);
     }
     
     if (!backend) {
@@ -329,11 +411,34 @@ function handleFormSubmit(event) {
         return;
     }
     
+    // Get config value - either from select or custom input
+    let config = '';
+    const customConfigToggle = document.getElementById('customConfigToggle');
+    if (customConfigToggle && customConfigToggle.checked) {
+        // Use custom config
+        const customConfigInput = document.getElementById('customConfig');
+        config = customConfigInput ? customConfigInput.value.trim() : '';
+        if (!config) {
+            showToast('请输入自定义配置链接', 'error');
+            return;
+        }
+        // Validate URL format
+        try {
+            new URL(config);
+        } catch (e) {
+            showToast('自定义配置链接格式不正确，请输入有效的URL', 'error');
+            return;
+        }
+    } else {
+        // Use regular config select
+        config = formData.get('config');
+    }
+    
     const data = {
         url: formData.get('url'),
         target: formData.get('target'),
         backend: backend,
-        config: formData.get('config'),
+        config: config,
         include: formData.get('include'),
         exclude: formData.get('exclude'),
         name: formData.get('name'),
@@ -434,16 +539,14 @@ function handleClashQrCode() {
     // If custom backend is selected, use the custom input value
     if (backend === 'custom') {
         const customBackendHeader = document.getElementById('customBackendHeader');
-        backend = customBackendHeader ? customBackendHeader.value : '';
+        backend = customBackendHeader ? customBackendHeader.value.trim() : '';
         // Validate custom backend URL
         if (!backend) {
             showToast('请输入自定义后端地址', 'error');
             return;
         }
-        // Ensure URL ends with /sub?
-        if (!backend.endsWith('/sub?') && !backend.endsWith('/sub')) {
-            backend += '/sub?';
-        }
+        // Smart auto-completion for backend URL
+        backend = autoCompleteBackendUrl(backend);
     }
     
     if (!backend) {
@@ -459,11 +562,34 @@ function handleClashQrCode() {
         return;
     }
     
+    // Get config value - either from select or custom input
+    let config = '';
+    const customConfigToggle = document.getElementById('customConfigToggle');
+    if (customConfigToggle && customConfigToggle.checked) {
+        // Use custom config
+        const customConfigInput = document.getElementById('customConfig');
+        config = customConfigInput ? customConfigInput.value.trim() : '';
+        if (!config) {
+            showToast('请输入自定义配置链接', 'error');
+            return;
+        }
+        // Validate URL format
+        try {
+            new URL(config);
+        } catch (e) {
+            showToast('自定义配置链接格式不正确，请输入有效的URL', 'error');
+            return;
+        }
+    } else {
+        // Use regular config select
+        config = formData.get('config');
+    }
+    
     const data = {
         url: url,
         target: target,
         backend: backend,
-        config: formData.get('config'),
+        config: config,
         include: formData.get('include'),
         exclude: formData.get('exclude'),
         name: formData.get('name'),
@@ -702,6 +828,72 @@ async function initializeBackends() {
     updateBackendButtonLabel();
 }
 
+// Smart auto-completion for backend URL
+function autoCompleteBackendUrl(url) {
+    // Remove trailing spaces
+    url = url.trim();
+    
+    // If URL ends with just the domain (no trailing slash), add /sub?
+    // Example: https://api.sub.zaoy.cn -> https://api.sub.zaoy.cn/sub?
+    if (url.match(/^https?:\/\/[^\/]+$/) && !url.includes('/sub')) {
+        return url + '/sub?';
+    }
+    
+    // If URL ends with trailing slash only, add ?
+    // Example: https://api.sub.zaoy.cn/ -> https://api.sub.zaoy.cn/?
+    if (url.match(/^https?:\/\/[^\/]+\/$/) && !url.includes('/sub')) {
+        return url + '?';
+    }
+    
+    // If URL already has /sub but no query string, add ?
+    // Example: https://api.sub.zaoy.cn/sub -> https://api.sub.zaoy.cn/sub?
+    if (url.endsWith('/sub') && !url.includes('?')) {
+        return url + '?';
+    }
+    
+    // If URL already has query parameters, keep as is
+    if (url.includes('?')) {
+        return url;
+    }
+    
+    // Default fallback: add /sub? if no /sub exists and no trailing slash
+    if (!url.includes('/sub') && !url.endsWith('/')) {
+        return url + '/sub?';
+    }
+    
+    return url;
+}
+
+// Handle custom config toggle
+function handleCustomConfigToggle() {
+    const toggle = document.getElementById('customConfigToggle');
+    const configSelectContainer = document.getElementById('configSelectContainer');
+    const customConfigContainer = document.getElementById('customConfigContainer');
+    const customConfigInput = document.getElementById('customConfig');
+    
+    if (!toggle || !configSelectContainer || !customConfigContainer) return;
+    
+    if (toggle.checked) {
+        // Show custom input, hide select
+        configSelectContainer.classList.add('hidden');
+        customConfigContainer.classList.remove('hidden');
+        if (customConfigInput) {
+            customConfigInput.focus();
+            customConfigInput.required = true;
+        }
+        showToast('已切换到自定义配置模式', 'info');
+    } else {
+        // Show select, hide custom input
+        configSelectContainer.classList.remove('hidden');
+        customConfigContainer.classList.add('hidden');
+        if (customConfigInput) {
+            customConfigInput.required = false;
+            customConfigInput.value = '';
+        }
+        showToast('已切换到预设配置模式', 'info');
+    }
+}
+
 // Initialize on document ready
 $(document).ready(() => {
     // Initialize form elements
@@ -709,6 +901,12 @@ $(document).ready(() => {
     
     // Check backend versions
     initializeBackends();
+    
+    // Custom config toggle
+    const customConfigToggle = document.getElementById('customConfigToggle');
+    if (customConfigToggle) {
+        customConfigToggle.addEventListener('change', handleCustomConfigToggle);
+    }
     
     // Backend dropdown toggle
     const backendToggle = document.getElementById('backendToggle');
@@ -802,6 +1000,117 @@ $(document).ready(() => {
         });
     }
     
+    // Mobile Advanced Options Modal
+    const mobileAdvancedToggle = document.getElementById('mobileAdvancedToggle');
+    const mobileAdvancedModal = document.getElementById('mobileAdvancedModal');
+    const closeMobileAdvancedModal = document.getElementById('closeMobileAdvancedModal');
+    const mobileAdvancedConfirm = document.getElementById('mobileAdvancedConfirm');
+    const mobileAdvancedCancel = document.getElementById('mobileAdvancedCancel');
+    const advancedToggleIcon = document.getElementById('advancedToggleIcon');
+
+    // Initialize mobile advanced options
+    syncMobileAdvancedOptions();
+
+    if (mobileAdvancedToggle) {
+        mobileAdvancedToggle.addEventListener('click', () => {
+            syncMobileAdvancedOptions();
+            mobileAdvancedModal.classList.remove('hidden');
+            if (advancedToggleIcon) {
+                advancedToggleIcon.classList.add('rotate-180');
+            }
+        });
+    }
+
+    if (closeMobileAdvancedModal) {
+        closeMobileAdvancedModal.addEventListener('click', () => {
+            mobileAdvancedModal.classList.add('hidden');
+            if (advancedToggleIcon) {
+                advancedToggleIcon.classList.remove('rotate-180');
+            }
+        });
+    }
+
+    if (mobileAdvancedConfirm) {
+        mobileAdvancedConfirm.addEventListener('click', () => {
+            applyMobileAdvancedOptions();
+            mobileAdvancedModal.classList.add('hidden');
+            if (advancedToggleIcon) {
+                advancedToggleIcon.classList.remove('rotate-180');
+            }
+            showToast('高级选项已更新', 'success');
+        });
+    }
+
+    if (mobileAdvancedCancel) {
+        mobileAdvancedCancel.addEventListener('click', () => {
+            syncMobileAdvancedOptions(); // Reset to current state
+            mobileAdvancedModal.classList.add('hidden');
+            if (advancedToggleIcon) {
+                advancedToggleIcon.classList.remove('rotate-180');
+            }
+        });
+    }
+
+    // Mobile advanced option toggles
+    const mobileOptionCards = document.querySelectorAll('.mobile-option-card[data-option]');
+    mobileOptionCards.forEach(card => {
+        card.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const optionName = card.getAttribute('data-option');
+            if (optionName) {
+                console.log('Clicking option:', optionName); // Debug log
+                handleMobileAdvancedToggle(optionName);
+            }
+        });
+        
+        // Also add touch events for better mobile support
+        card.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const optionName = card.getAttribute('data-option');
+            if (optionName) {
+                console.log('Touch option:', optionName); // Debug log
+                handleMobileAdvancedToggle(optionName);
+            }
+        });
+    });
+
+    // Mobile Bottom Action Buttons
+    const generateBtnMobile = document.getElementById('generateBtnMobile');
+    const importToClashMobile = document.getElementById('importToClashMobile');
+    const clashQrBtnMobile = document.getElementById('clashQrBtnMobile');
+
+    if (generateBtnMobile) {
+        generateBtnMobile.addEventListener('click', () => {
+            // Trigger the original form submission
+            const form = document.getElementById('optionsForm');
+            if (form) {
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+    }
+
+    if (importToClashMobile) {
+        importToClashMobile.addEventListener('click', handleImportToClash);
+    }
+
+    if (clashQrBtnMobile) {
+        clashQrBtnMobile.addEventListener('click', handleClashQrCode);
+    }
+
+    // Close modal when clicking outside
+    if (mobileAdvancedModal) {
+        mobileAdvancedModal.addEventListener('click', (e) => {
+            if (e.target === mobileAdvancedModal) {
+                mobileAdvancedModal.classList.add('hidden');
+                if (advancedToggleIcon) {
+                    advancedToggleIcon.classList.remove('rotate-180');
+                }
+            }
+        });
+    }
+
     // Show welcome message
     setTimeout(() => {
         showToast('欢迎使用 Lfree订阅转换工具！', 'info');
