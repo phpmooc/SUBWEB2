@@ -286,27 +286,25 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="hidden sm:flex sm:flex-col gap-3 sm:gap-6 justify-center animate-slide-up" style="animation-delay: 0.2s">
+            <div class="hidden sm:flex sm:flex-row gap-3 justify-center animate-slide-up" style="animation-delay: 0.2s">
                 <!-- Desktop: Main Generate Button -->
                 <button type="submit" id="generateBtn"
-                    class="btn-primary px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold pulse-glow w-full sm:w-auto">
-                    <i class="fas fa-magic mr-2 sm:mr-3 text-lg sm:text-xl"></i>
+                    class="btn-primary px-6 py-3 text-base font-semibold pulse-glow flex-1 max-w-xs">
+                    <i class="fas fa-magic mr-2 text-lg"></i>
                     生成新订阅链接
                 </button>
                 
                 <!-- Desktop: Secondary Action Buttons -->
-                <div class="flex sm:flex-row gap-3 w-full sm:w-auto justify-center">
-                    <button type="button" id="importToClash"
-                        class="btn-secondary px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold flex-1 sm:flex-none">
-                        <i class="fas fa-download mr-2 sm:mr-3 text-lg sm:text-xl"></i>
-                        一键导入Clash
-                    </button>
-                    <button type="button" id="clashQrBtn"
-                        class="btn-secondary px-6 sm:px-4 py-3 sm:py-4 text-base sm:text-lg font-semibold">
-                        <i class="fas fa-qrcode mr-2 sm:mr-0 text-lg sm:text-xl"></i>
-                        <span class="sm:hidden">Clash二维码</span>
-                    </button>
-                </div>
+                <button type="button" id="importToClash"
+                    class="btn-secondary px-6 py-3 text-base font-semibold flex-1 max-w-xs">
+                    <i class="fas fa-download mr-2 text-lg"></i>
+                    一键导入Clash
+                </button>
+                <button type="button" id="clashQrBtn"
+                    class="btn-secondary px-6 py-3 text-base font-semibold flex-1 max-w-xs">
+                    <i class="fas fa-qrcode mr-2 text-lg"></i>
+                    Clash二维码
+                </button>
             </div>
         </form>
 
